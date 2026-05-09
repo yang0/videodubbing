@@ -1,12 +1,15 @@
 # 能够使用的cli工具
-- audioclone: 根据字幕和原音频切片进行声音克隆
-- getaudio: 从视频中剥离出音频
-- cutaudio: 根据字幕文件将一个大音频切成多个音频切片
-- srt-trans: 这是一个skill，用于翻译字幕文件
-- volc-srt: 根据音频获取字幕文件
-- removeaudio: 把音频从视频中去除
-- subburn： 把字幕烧制到视频上
-- align-video: 把音频和视频对齐。 输入：无声的视频，翻译后的字幕，对应字幕的音频切片, 输出：配好音的音频
+- [audioclone](https://github.com/yang0/audioclone): 根据字幕和原音频切片进行声音克隆
+- [getaudio](https://github.com/yang0/getaudio): 从视频中剥离出音频，支持人声/背景音分离
+- [cutaudio](https://github.com/yang0/cutaudio): 根据字幕文件将一个大音频切成多个音频切片
+- [volc-srt](https://github.com/yang0/volasr): 根据音频获取字幕文件，支持说话人分离
+- [removeaudio](https://github.com/yang0/removeaudio): 把音频从视频中去除
+- [align-video](https://github.com/yang0/alignaudio): 把音频和视频对齐。输入：无声的视频，翻译后的字幕，对应字幕的音频切片, 输出：配好音的音频
+- [subburn](https://github.com/yang0/subburn): 把字幕烧制到视频上
+
+# Skills
+- [srt-translator](https://github.com/yang0/srt-trans): 字幕翻译skill，支持口语化翻译、合句、数字转文字、字数控时
+- [video-dubbing](https://github.com/yang0/videodubbing): 视频配音完整流程skill
 
 # 典型的youtube视频配音流程
 用户输入：youtube url， 目标语言
