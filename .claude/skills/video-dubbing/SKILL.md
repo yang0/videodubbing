@@ -30,8 +30,8 @@ pip install volcengine  # 或全局安装 volc-srt
 # 2. 音频切片
 cd cutaudio && npm install -g
 
-# 3. AI语音克隆（OmniVoice）
-cd audioclone && npm install -g
+# 3. AI语音克隆（VoxCPM2）
+cd voxclone && npm install -g
 
 # 4. 视频下载（YouTube）
 pip install yt-dlp  # 或全局安装 yt-dlp
@@ -65,7 +65,7 @@ YouTube URL → [yt-dlp] → 视频文件
                               ↓                ↓
                         [cutaudio] ← ─────────┘ 按合并时间轴切片
                               ↓
-                        [audioclone] → 中文配音克隆（完整句子+数字转文字）
+                              [voxclone] → 中文配音克隆（完整句子+数字转文字）
                               ↓
                         [removeaudio] → 无声视频
                               ↓
@@ -203,7 +203,7 @@ set VOLC_API_KEY=your_api_key  # 优先使用环境变量配置API Key
 - ⚠️ 同人不截断（间隙<300ms的连续语句合并）
 
 **预期输出**：
-- `video_zh_dub.srt`: 配音优化版（已合句+数字转文字，供 audioclone 使用）
+- `video_zh_dub.srt`: 配音优化版（已合句+数字转文字，供 voxclone 使用）
 - `video_glossary_zh.md`: 术语对照表
 
 > ⚠️ 不在此步输出原版字幕，因为后续 align-video 会导致时间戳漂移。
@@ -216,7 +216,7 @@ set VOLC_API_KEY=your_api_key  # 优先使用环境变量配置API Key
 使用 `cutaudio` 按**配音优化版字幕**（已合句）的时间轴将原音频切片：
 
 > ⚠️ 不能按原版英文字幕切！翻译时会合并字幕条目（460→186），时间轴已变化。
-> 必须用合并后的时间轴切，保证切片数量和顺序与 audioclone 字幕一一对应。
+> 必须用合并后的时间轴切，保证切片数量和顺序与 voxclone 字幕一一对应。
 
 ```bash
 cutaudio -s <配音优化版字幕文件> -a <原音频文件> -o <输出目录> [--no-separate]
@@ -225,7 +225,7 @@ cutaudio -s <配音优化版字幕文件> -a <原音频文件> -o <输出目录>
 **示例**：
 ```bash
 # 用配音优化版字幕（已合句）的时间轴来切，使用纯净人声作为参考音频
-# cutaudio 会自动给每个切片加 80ms 前/160ms 后 padding，给 OmniVoice 更多上下文
+# cutaudio 会自动给每个切片加 80ms 前/160ms 后 padding，给 VoxCPM2 更多上下文
 cutaudio -s test/video_zh_dub.srt -a test/video_vocals.mp3 -o test/audio_clips --no-separate
 ```
 
@@ -237,7 +237,7 @@ cutaudio -s test/video_zh_dub.srt -a test/video_vocals.mp3 -o test/audio_clips -
 
 **重要提示**：
 - 切片数量应与 `video_zh_dub.srt` 条目数一致
-- **默认输出格式为 .mp3**，但 `audioclone` 要求 **.wav 格式**
+- **默认输出格式为 .mp3**，但 `voxclone` 要求 **.wav 格式**
 
 **预期输出**：
 ```
@@ -252,7 +252,7 @@ audio_clips/
 
 ### 步骤 6：格式转换（MP3 → WAV）
 
-**关键步骤**：audioclone 只接受 `.wav` 格式参考音频
+**关键步骤**：voxclone 只接受 `.wav` 格式参考音频
 
 使用 ffmpeg 批量转换：
 
@@ -271,7 +271,7 @@ done
 ```
 
 **参数说明**：
-- `-ar 16000`: 采样率16kHz（OmniVoice推荐）
+- `-ar 16000`: 采样率16kHz（VoxCPM2推荐）
 - `-ac 1`: 单声道
 - `-y`: 覆盖已存在文件
 
@@ -281,31 +281,43 @@ done
 
 ### 步骤 7：中文配音克隆
 
-使用 `audioclone` 生成中文配音（注意使用配音优化版字幕）：
+使用 `voxclone` 生成中文配音（注意使用配音优化版字幕）：
 
 ```bash
-audioclone dub -s <配音优化版字幕文件> -a <参考音频目录> -o <输出目录> [options]
+voxclone dub -s <配音优化版字幕文件> [-a <参考音频目录>] -o <输出目录> [options]
 ```
 
 **示例**：
 ```bash
-# 使用配音优化版字幕（已合句+数字转文字），而不是原版字幕
-audioclone dub -s test/video_zh_dub.srt -a test/audio_clips -o test/dubbed_output --device cuda --steps 32
+# 语音克隆模式（提供参考音频）
+voxclone dub -s test/video_zh_dub.srt -a test/audio_clips -o test/dubbed_output --device cuda --steps 10
+
+# Voice Design 模式（无参考音频，纯文本合成）
+voxclone dub -s test/video_zh_dub.srt -o test/dubbed_output --voice-style "沉稳男性声音"
 ```
 
 **参数说明**：
-- `-s, --subtitles`: 配音优化版字幕路径（`video_zh_dub.srt`，不要用 `video_zh.srt`）
-- `-a, --audio-dir`: 参考音频切片目录（包含 `.wav` 文件）
+- `-s, --subtitles`: 配音优化版字幕路径（`video_zh_dub.srt`）
+- `-a, --audio-dir`: 参考音频切片目录（包含 `.wav` 文件，语音克隆模式需要）
+- `--voice-style`: Voice Design 风格描述（与 `-a` 互斥，如 "沉稳男声"）
 - `-o, --output`: 输出目录（默认：`output_dubbed`）
 - `--device`: 计算设备（`cuda`/`cpu`，默认cuda）
-- `--steps`: 推理步数（默认32，越高质量越好但越慢）
-- `--speed`: 语速调节（默认1.0）
-- `--model-path`: OmniVoice模型路径（默认自动查找）
+- `--steps`: 推理步数（默认10，越高越好但越慢）
+- `--guidance-scale`: 引导强度（默认2.0）
+- `--python-env`: Python 解释器路径（默认自动检测，VoxCPM2 需要特定环境）
+- `--model`: VoxCPM2 模型 ID（默认 `openbmb/VoxCPM2`）
+- `--denoise`: 对参考音频降噪
+- `--normalize`: 文本归一化
+
+**Voice Design 模式**（无需参考音频）：
+```bash
+voxclone dub -s test/video_zh_dub.srt -o test/dubbed_output --voice-style "沉稳男性声音" --steps 10
+```
 
 **重要提示**：
-- 必须使用 `video_zh_dub.srt`（配音优化版），不要用原版 `video_zh.srt`
-- 配音优化版已合并了语义不完整的条目，每条都是完整句子，TTS效果更好
-- 所有数字已转为中文文字（2%→百分之二），防止TTS念错
+- 必须使用 `video_zh_dub.srt`（配音优化版），不要用原版
+- VoxCPM2 输出 48kHz 高品质音频，内置 fade + RMS 归一化
+- VoxCPM2 比 OmniVoice 音质更好，tokenizer-free 连续表示
 
 **预期输出**：
 ```
@@ -478,7 +490,7 @@ volc-srt test/video_vocals.mp3 -o test/video_en.srt --max-chars 100
 
 # 4. 翻译为配音优化版字幕（含合句+数字转文字+口语化）
 /srt-translator test/video_en.srt --target-lang zh
-# 输出: video_zh_dub.srt（已合句，给 audioclone 用）
+# 输出: video_zh_dub.srt（已合句，给 voxclone 用）
 
 # 5. 按配音优化版时间轴切片（自动加 80ms/160ms padding）
 cutaudio -s test/video_zh_dub.srt -a test/video_vocals.mp3 -o test/audio_clips --no-separate
@@ -491,7 +503,7 @@ foreach ($clip in $clips) {
 }
 
 # 7. 中文配音克隆（fade + 完整句子 + 数字转文字）
-audioclone dub -s test/video_zh_dub.srt -a test/audio_clips -o test/dubbed_output --device cuda --steps 32
+voxclone dub -s test/video_zh_dub.srt -a test/audio_clips -o test/dubbed_output --device cuda --steps 10
 
 # 8. 去除原视频音频
 removeaudio test/video.mp4 -o test/video_no_audio.mp4
@@ -524,14 +536,14 @@ subburn test/aligned_with_bgm.mp4 test/final.srt test/video_final.mp4
 | volc-srt | 音频文件 | SRT字幕 | 火山API Key |
 | srt-translator | 英文字幕 | 中文字幕 | LLM翻译能力 |
 | cutaudio | 音频+SRT | 音频切片 | ffmpeg |
-| audioclone | 字幕+WAV切片 | 配音片段 | OmniVoice模型、CUDA |
+| voxclone | 字幕+WAV切片 | 配音片段 | VoxCPM2模型、CUDA |
 | removeaudio | 视频文件 | 无声视频 | ffmpeg |
 | align-video | 视频+字幕+音频 | 对齐后的音频 | ffmpeg |
 | subburn | 视频+字幕 | 带字幕视频 | ffmpeg |
 
 ### 2. 格式兼容性陷阱
 
-**最大坑点**：`cutaudio` 输出 `.mp3`，但 `audioclone` 只接受 `.wav`
+**最大坑点**：`cutaudio` 输出 `.mp3`，但 `voxclone` 只接受 `.wav`
 - 必须手动进行格式转换
 - 推荐使用 16kHz 单声道 WAV
 
@@ -560,7 +572,7 @@ subburn test/aligned_with_bgm.mp4 test/final.srt test/video_final.mp4
 
 ### 5. 性能优化
 
-- **GPU加速**：audioclone使用CUDA，速度提升10倍以上
+- **GPU加速**：voxclone使用CUDA，速度提升10倍以上
 - **批量处理**：长视频（>30分钟）建议分段处理
 - **内存管理**：321条字幕约需8GB显存
 
@@ -614,7 +626,7 @@ volc-srt audio.mp3 --timeout 600
 ffmpeg -i subtitle.srt  # 检查是否有解析错误
 ```
 
-### 问题：audioclone 提示缺少WAV文件
+### 问题：voxclone 提示缺少WAV文件
 
 **原因**：参考音频是MP3格式
 **解决**：执行步骤6的格式转换
@@ -629,14 +641,14 @@ ffmpeg -i subtitle.srt  # 检查是否有解析错误
 **解决**：
 - 去掉 `--no-separate`，让人声分离
 - 检查短音频切片并合并
-- 验证模型路径：`--model-path /path/to/OmniVoice-bf16`
+- 验证模型路径：`--model-path /path/to/VoxCPM2-bf16`
 
 ### 问题：CUDA out of memory
 
 **解决**：
 ```bash
 # 降低batch size或使用CPU
-audioclone dub ... --device cpu
+voxclone dub ... --device cpu
 ```
 
 ### 问题：align-video 处理中断
@@ -706,8 +718,9 @@ done
 ### 自定义模型路径
 
 ```bash
-audioclone dub -s subs.srt -a clips/ -o out/ \
-  --model-path "G:/models/OmniVoice-bf16" \
+voxclone dub -s subs.srt -a clips/ -o out/ \
+  --model "openbmb/VoxCPM2" \
+  --steps 10
   --steps 64 \
   --speed 1.1
 ```
@@ -726,7 +739,7 @@ audioclone dub -s subs.srt -a clips/ -o out/ \
 
 ## 相关链接
 
-- **OmniVoice**: https://github.com/k2-fsa/OmniVoice
+- **VoxCPM2**: https://github.com/k2-fsa/VoxCPM2
 - **火山引擎语音识别**: https://www.volcengine.com/product/speech
 - **srt-translator skill**: 字幕翻译专用skill
 

@@ -1,5 +1,5 @@
 # 能够使用的cli工具
-- [audioclone](https://github.com/yang0/audioclone): 根据字幕和原音频切片进行声音克隆
+- [voxclone](https://github.com/yang0/voxclone): 根据字幕和原音频切片进行声音克隆（VoxCPM2）
 - [getaudio](https://github.com/yang0/getaudio): 从视频中剥离出音频，支持人声/背景音分离
 - [cutaudio](https://github.com/yang0/cutaudio): 根据字幕文件将一个大音频切成多个音频切片
 - [volc-srt](https://github.com/yang0/volasr): 根据音频获取字幕文件，支持说话人分离
