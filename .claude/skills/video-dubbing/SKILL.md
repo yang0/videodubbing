@@ -33,11 +33,11 @@ cd cutaudio && npm install -g
 # 3. AI语音克隆（VoxCPM2）
 cd voxclone && npm install -g
 
-# 4. 视频下载（YouTube）
-pip install yt-dlp  # 或全局安装 yt-dlp
+# 4. 视频下载（YouTube）→ 使用 youtube-downloader skill
+# 见步骤1，自动通过 CDP + PoToken 绕过反爬
 
 # 5. 音频提取
-pip install yt-dlp  # getaudio依赖ffmpeg
+# getaudio依赖ffmpeg
 
 # 6. 视频处理工具（removeaudio, align-video, subburn）
 # 这些工具依赖ffmpeg，请确保ffmpeg已安装并加入PATH
@@ -46,7 +46,7 @@ pip install yt-dlp  # getaudio依赖ffmpeg
 **系统要求**：
 - Python 3.10+
 - ffmpeg（音频处理）
-- yt-dlp（视频下载）
+- youtube-downloader skill（YouTube 视频下载，替代直接 yt-dlp）
 - CUDA GPU（推荐，用于语音克隆）
 - 火山引擎API Key（语音识别）
 
@@ -55,7 +55,7 @@ pip install yt-dlp  # getaudio依赖ffmpeg
 ### 概览
 
 ```
-YouTube URL → [yt-dlp] → 视频文件
+YouTube URL → [youtube-downloader skill] → 视频文件
                               ↓
                         [getaudio] → 音频文件
                               ↓
@@ -80,35 +80,34 @@ YouTube URL → [yt-dlp] → 视频文件
 
 ### 步骤 1：下载 YouTube 视频
 
-使用 `yt-dlp` 下载 YouTube 视频：
+使用 **youtube-downloader skill** 下载视频。该 skill 自动处理认证问题
+（通过 Chrome CDP 提取 cookies + bgutil PoToken 绕过反爬）：
 
 ```bash
-yt-dlp <YouTube URL> -o <输出视频路径>
+# youtube-downloader skill 自动执行：
+# 1. 启动 bgutil PoToken 服务（端口 4416）
+# 2. 启动 Chrome CDP 从预登录 profile 提取 cookies
+# 3. 用 yt-dlp + cookies + PoToken 下载视频
 ```
 
 **示例**：
-```bash
-yt-dlp "https://www.youtube.com/watch?v=K8Ros5RhJW4" -o test/video.mp4
+对用户来说，只需提供 YouTube URL，skill 自动处理整个下载链：
+```
+为这个视频配音：https://www.youtube.com/watch?v=WIrDQYGpIbg
 ```
 
-**参数说明**：
-- `-o`: 输出文件路径模板
-- `-f best`: 下载最佳质量（默认）
-- `--no-playlist`: 仅下载单个视频，不下载播放列表
+**输出**：视频文件保存为 `video.mp4`
 
-**常见问题**：
-- 如果下载失败，尝试更新 yt-dlp：`pip install -U yt-dlp`
-- YouTube 需要 Cookie：添加 `--cookies cookies.txt` 参数
-  - Cookie 文件可通过浏览器扩展（如 "Get cookies.txt LOCALLY"）导出
-  - 或使用 `--cookies-from-browser chrome` 自动从 Chrome 获取
-- 某些地区可能需要代理：`--proxy http://proxy:port`
-- **JavaScript 运行时警告**：如果提示 `No supported JavaScript runtime`，安装 Node.js：
-  ```bash
-  # Windows（使用 winget）
-  winget install OpenJS.NodeJS
-  
-  # 或下载安装：https://nodejs.org/
-  ```
+**工作原理**：youtube-downloader skill 会：
+1. 确保 `bgutil-start` 服务在 4416 端口运行
+2. 启动 Chrome（使用 `G:\chrome_data\remote_debug` 预登录 profile）开启 CDP
+3. 通过 CDP `Network.getCookies` 提取 YouTube 认证 cookies
+4. 转换为 Netscape 格式供 yt-dlp 使用
+5. 执行 `yt-dlp URL --cookies cookies.txt` 下载视频
+
+> ⚠️ 不再直接使用 `yt-dlp URL` 命令。
+> 当 yt-dlp 提示 "Sign in to confirm you're not a bot" 或 DPAPI 错误时，
+> youtube-downloader skill 自动处理认证问题。
 
 ---
 
@@ -478,8 +477,9 @@ ffmpeg -f concat -safe 0 -i <(for f in dubbed_output/*.wav; do echo "file '$PWD/
 ## 完整工作流示例
 
 ```bash
-# 1. 下载YouTube视频
-yt-dlp "https://www.youtube.com/watch?v=K8Ros5RhJW4" -o test/video.mp4 --cookies G:\cookies\youtube_converted.txt
+# 1. 下载YouTube视频（使用 youtube-downloader skill，自动处理认证）
+# 用户只需提供 URL，skill 自动执行 CDP + PoToken 下载链
+# 输出: video.mp4
 
 # 2. 提取音频 + 人声/背景音分离（推荐开启 --separate）
 getaudio test/video.mp4 -o test/video.mp3 --separate
@@ -531,7 +531,7 @@ subburn test/aligned_with_bgm.mp4 test/final.srt test/video_final.mp4
 
 | 工具 | 输入 | 输出 | 依赖 |
 |------|------|------|------|
-| yt-dlp | YouTube URL | 视频文件 | yt-dlp |
+| youtube-downloader skill | YouTube URL | 视频文件 | Chrome, bgutil, yt-dlp |
 | getaudio | 视频文件 | 音频文件 | ffmpeg |
 | volc-srt | 音频文件 | SRT字幕 | 火山API Key |
 | srt-translator | 英文字幕 | 中文字幕 | LLM翻译能力 |
@@ -592,19 +592,19 @@ winget install OpenJS.NodeJS
 
 ### 问题：yt-dlp 提示 "Sign in to confirm you're not a bot"
 
-**解决**：提供 YouTube Cookie（推荐使用 `youtube_converted.txt`）：
+**解决**：使用 **youtube-downloader skill** 自动处理认证。
+该 skill 通过 Chrome CDP 提取实时 cookies + bgutil PoToken 绕过 YouTube 反爬。
+
+手动流程（不推荐）：
 ```bash
 # 方法1：使用 cookies 文件（推荐，无需浏览器）
 yt-dlp "URL" --cookies G:\cookies\youtube_converted.txt
 
 # 方法2：从浏览器自动获取（需要关闭浏览器）
 yt-dlp "URL" --cookies-from-browser chrome
-
-# 方法3：先导出再转换格式
-yt-dlp "URL" --cookies-from-browser chrome --cookies G:\cookies\youtube.txt --skip-download
-# 然后用转换后的 cookie 下载
-yt-dlp "URL" -o output.mp4 --cookies G:\cookies\youtube_converted.txt
 ```
+
+**推荐**：直接使用 youtube-downloader skill，无需手动管理 cookies。
 
 ### 问题：volc-srt 返回API错误
 
@@ -739,13 +739,14 @@ voxclone dub -s subs.srt -a clips/ -o out/ \
 
 ## 相关链接
 
+- **youtube-downloader skill**: YouTube 视频下载专用 skill（CDP + PoToken 自动认证）
 - **VoxCPM2**: https://github.com/k2-fsa/VoxCPM2
 - **火山引擎语音识别**: https://www.volcengine.com/product/speech
 - **srt-translator skill**: 字幕翻译专用skill
 
 ---
 
-**版本**: v1.0
-**最后更新**: 2026-05-04
+**版本**: v1.1
+**最后更新**: 2026-05-09
 **维护者**: Claude Code
-**基于实践**: 成功处理28分钟英文视频（321条字幕）的完整经验
+**变更**: v1.1 - 步骤1改用 youtube-downloader skill（CDP cookies + PoToken），不再直接使用 yt-dlp
