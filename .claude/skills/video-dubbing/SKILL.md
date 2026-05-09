@@ -188,10 +188,10 @@ set VOLC_API_KEY=your_api_key  # 优先使用环境变量配置API Key
 
 **或手动执行**：
 1. 读取SRT文件并解析
-2. 提取专业术语，生成术语表（`{文件名}_glossary_zh.md`）
-3. 分批次翻译（每批20-30条）
-4. 重构SRT文件，输出 `video_zh.srt`
-5. **配音优化**：合并语义不完整的条目、数字转文字，输出 `video_zh_dub.srt`
+2. 提取专业术语，生成术语表
+3. 用 merge_srt.py 预处理：计算合并组 + 数字批量转换
+4. 分批次翻译合并后的条目（每批40-60条，可并行）
+5. 输出最终配音优化版 `video_zh_dub.srt`
 
 **翻译要求**：
 - 保持时间轴格式完全不变
@@ -363,7 +363,7 @@ align-video test/video_zh_dub.srt test/video_no_audio.mp4 test/dubbed_output tes
 - `--workers`: 并发线程数（默认4）
 - `--resume`: 断点续传
 - `--rife`: 使用 RIFE GPU 插帧
-- `--no-adaptive-speed`: 禁用两级变速对齐（默认开启）
+- `--adaptive-speed`: 启用两级变速对齐（默认关闭）
 - `--audio-stretch`: 旧版音频拉伸模式
 - `--scene-snap`: 智能场景边界对齐
 
@@ -496,7 +496,7 @@ audioclone dub -s test/video_zh_dub.srt -a test/audio_clips -o test/dubbed_outpu
 # 8. 去除原视频音频
 removeaudio test/video.mp4 -o test/video_no_audio.mp4
 
-# 9. 对齐音频和视频（两级变速默认开启 + afade + 24kHz）
+# 9. 对齐音频和视频（afade + 24kHz，可选 --adaptive-speed 两级变速）
 align-video test/video_zh_dub.srt test/video_no_audio.mp4 test/dubbed_output test/aligned.mp4
 
 # 10. 混入背景音乐（掩盖片段衔接痕迹，BGM 30%音量）
